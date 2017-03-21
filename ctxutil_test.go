@@ -6,20 +6,17 @@ import (
 	"golang.org/x/net/context"
 	gc "gopkg.in/check.v1"
 
-	"github.com/sdboyer/constext"
+	"github.com/CanonicalLtd/jem/internal/ctxutil"
 )
 
 type ctxutilSuite struct {
 }
 
-var join = constext.Cons
-
 var _ = gc.Suite(&ctxutilSuite{})
 
 func (s *ctxutilSuite) TestJoinCancel1(c *gc.C) {
 	ctx1, cancel1 := context.WithCancel(context.Background())
-	ctx, ctxCancel := join(ctx1, context.Background())
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, context.Background())
 	cancel1()
 	waitFor(c, ctx.Done())
 	c.Assert(ctx.Err(), gc.Equals, context.Canceled)
@@ -27,8 +24,7 @@ func (s *ctxutilSuite) TestJoinCancel1(c *gc.C) {
 
 func (s *ctxutilSuite) TestJoinCancel2(c *gc.C) {
 	ctx1, cancel1 := context.WithCancel(context.Background())
-	ctx, ctxCancel := join(context.Background(), ctx1)
-	defer ctxCancel()
+	ctx := ctxutil.Join(context.Background(), ctx1)
 	cancel1()
 	waitFor(c, ctx.Done())
 	c.Assert(ctx.Err(), gc.Equals, context.Canceled)
@@ -38,16 +34,14 @@ func (s *ctxutilSuite) TestJoinCancelBoth1(c *gc.C) {
 	ctx1, cancel1 := context.WithCancel(context.Background())
 	ctx2, cancel2 := context.WithCancel(context.Background())
 	defer cancel2()
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 	cancel1()
 	waitFor(c, ctx.Done())
 	c.Assert(ctx.Err(), gc.Equals, context.Canceled)
 }
 
 func (s *ctxutilSuite) TestErrNoErr(c *gc.C) {
-	ctx, ctxCancel := join(context.Background(), context.Background())
-	defer ctxCancel()
+	ctx := ctxutil.Join(context.Background(), context.Background())
 	c.Assert(ctx.Err(), gc.Equals, nil)
 }
 
@@ -55,8 +49,7 @@ func (s *ctxutilSuite) TestJoinCancelBoth2(c *gc.C) {
 	ctx1, cancel1 := context.WithCancel(context.Background())
 	defer cancel1()
 	ctx2, cancel2 := context.WithCancel(context.Background())
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 	cancel2()
 	waitFor(c, ctx.Done())
 	c.Assert(ctx.Err(), gc.Equals, context.Canceled)
@@ -66,8 +59,7 @@ func (s *ctxutilSuite) TestDeadline1(c *gc.C) {
 	t := time.Now().Add(5 * time.Second).UTC()
 	ctx1, cancel1 := context.WithDeadline(context.Background(), t)
 	defer cancel1()
-	ctx, ctxCancel := join(ctx1, context.Background())
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, context.Background())
 	deadline, ok := ctx.Deadline()
 	c.Assert(ok, gc.Equals, true)
 	c.Assert(deadline, gc.Equals, t)
@@ -77,8 +69,7 @@ func (s *ctxutilSuite) TestDeadline2(c *gc.C) {
 	t := time.Now().Add(5 * time.Second).UTC()
 	ctx1, cancel1 := context.WithDeadline(context.Background(), t)
 	defer cancel1()
-	ctx, ctxCancel := join(context.Background(), ctx1)
-	defer ctxCancel()
+	ctx := ctxutil.Join(context.Background(), ctx1)
 	deadline, ok := ctx.Deadline()
 	c.Assert(ok, gc.Equals, true)
 	c.Assert(deadline, gc.Equals, t)
@@ -93,8 +84,7 @@ func (s *ctxutilSuite) TestDeadlineBoth1(c *gc.C) {
 	ctx2, cancel2 := context.WithDeadline(context.Background(), t2)
 	defer cancel2()
 
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 
 	deadline, ok := ctx.Deadline()
 	c.Assert(ok, gc.Equals, true)
@@ -110,8 +100,7 @@ func (s *ctxutilSuite) TestDeadlineBoth2(c *gc.C) {
 	ctx2, cancel2 := context.WithDeadline(context.Background(), t2)
 	defer cancel2()
 
-	ctx, ctxCancel := join(ctx2, ctx1)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx2, ctx1)
 
 	deadline, ok := ctx.Deadline()
 	c.Assert(ok, gc.Equals, true)
@@ -120,23 +109,20 @@ func (s *ctxutilSuite) TestDeadlineBoth2(c *gc.C) {
 
 func (s *ctxutilSuite) TestValue1(c *gc.C) {
 	ctx1 := context.WithValue(context.Background(), "foo", "bar")
-	ctx, ctxCancel := join(ctx1, context.Background())
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, context.Background())
 	c.Assert(ctx.Value("foo"), gc.Equals, "bar")
 }
 
 func (s *ctxutilSuite) TestValue2(c *gc.C) {
 	ctx1 := context.WithValue(context.Background(), "foo", "bar")
-	ctx, ctxCancel := join(context.Background(), ctx1)
-	defer ctxCancel()
+	ctx := ctxutil.Join(context.Background(), ctx1)
 	c.Assert(ctx.Value("foo"), gc.Equals, "bar")
 }
 
 func (s *ctxutilSuite) TestValueBoth(c *gc.C) {
 	ctx1 := context.WithValue(context.Background(), "foo", "bar1")
 	ctx2 := context.WithValue(context.Background(), "foo", "bar2")
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 	c.Assert(ctx.Value("foo"), gc.Equals, "bar1")
 }
 
@@ -146,8 +132,7 @@ func (s *ctxutilSuite) TestDoneRace(c *gc.C) {
 	defer cancel1()
 	ctx2, cancel2 := context.WithDeadline(context.Background(), time.Now())
 	defer cancel2()
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 	done := make(chan struct{})
 	go func() {
 		<-ctx.Done()
@@ -167,8 +152,7 @@ func (s *ctxutilSuite) TestErrRace(c *gc.C) {
 	defer cancel1()
 	ctx2, cancel2 := context.WithDeadline(context.Background(), time.Now())
 	defer cancel2()
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 	done := make(chan struct{})
 	go func() {
 		ctx.Err()
