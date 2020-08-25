@@ -1,90 +1,85 @@
 package ctxutil_test
 
 import (
+	"context"
+	"testing"
 	"time"
 
-	"golang.org/x/net/context"
-	gc "gopkg.in/check.v1"
+	qt "github.com/frankban/quicktest"
 
-	"github.com/sdboyer/constext"
+	"gopkg.in/ctxutil.v1"
 )
 
-type ctxutilSuite struct {
-}
-
-var join = constext.Cons
-
-var _ = gc.Suite(&ctxutilSuite{})
-
-func (s *ctxutilSuite) TestJoinCancel1(c *gc.C) {
+func TestJoinCancel1(t *testing.T) {
+	c := qt.New(t)
 	ctx1, cancel1 := context.WithCancel(context.Background())
-	ctx, ctxCancel := join(ctx1, context.Background())
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, context.Background())
 	cancel1()
 	waitFor(c, ctx.Done())
-	c.Assert(ctx.Err(), gc.Equals, context.Canceled)
+	c.Assert(ctx.Err(), qt.Equals, context.Canceled)
 }
 
-func (s *ctxutilSuite) TestJoinCancel2(c *gc.C) {
+func TestJoinCancel2(t *testing.T) {
+	c := qt.New(t)
 	ctx1, cancel1 := context.WithCancel(context.Background())
-	ctx, ctxCancel := join(context.Background(), ctx1)
-	defer ctxCancel()
+	ctx := ctxutil.Join(context.Background(), ctx1)
 	cancel1()
 	waitFor(c, ctx.Done())
-	c.Assert(ctx.Err(), gc.Equals, context.Canceled)
+	c.Assert(ctx.Err(), qt.Equals, context.Canceled)
 }
 
-func (s *ctxutilSuite) TestJoinCancelBoth1(c *gc.C) {
+func TestJoinCancelBoth1(t *testing.T) {
+	c := qt.New(t)
 	ctx1, cancel1 := context.WithCancel(context.Background())
 	ctx2, cancel2 := context.WithCancel(context.Background())
 	defer cancel2()
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 	cancel1()
 	waitFor(c, ctx.Done())
-	c.Assert(ctx.Err(), gc.Equals, context.Canceled)
+	c.Assert(ctx.Err(), qt.Equals, context.Canceled)
 }
 
-func (s *ctxutilSuite) TestErrNoErr(c *gc.C) {
-	ctx, ctxCancel := join(context.Background(), context.Background())
-	defer ctxCancel()
-	c.Assert(ctx.Err(), gc.Equals, nil)
+func TestErrNoErr(t *testing.T) {
+	c := qt.New(t)
+	ctx := ctxutil.Join(context.Background(), context.Background())
+	c.Assert(ctx.Err(), qt.Equals, nil)
 }
 
-func (s *ctxutilSuite) TestJoinCancelBoth2(c *gc.C) {
+func TestJoinCancelBoth2(t *testing.T) {
+	c := qt.New(t)
 	ctx1, cancel1 := context.WithCancel(context.Background())
 	defer cancel1()
 	ctx2, cancel2 := context.WithCancel(context.Background())
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 	cancel2()
 	waitFor(c, ctx.Done())
-	c.Assert(ctx.Err(), gc.Equals, context.Canceled)
+	c.Assert(ctx.Err(), qt.Equals, context.Canceled)
 }
 
-func (s *ctxutilSuite) TestDeadline1(c *gc.C) {
-	t := time.Now().Add(5 * time.Second).UTC()
-	ctx1, cancel1 := context.WithDeadline(context.Background(), t)
+func TestDeadline1(t *testing.T) {
+	c := qt.New(t)
+	tt := time.Now().Add(5 * time.Second).UTC()
+	ctx1, cancel1 := context.WithDeadline(context.Background(), tt)
 	defer cancel1()
-	ctx, ctxCancel := join(ctx1, context.Background())
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, context.Background())
 	deadline, ok := ctx.Deadline()
-	c.Assert(ok, gc.Equals, true)
-	c.Assert(deadline, gc.Equals, t)
+	c.Assert(ok, qt.Equals, true)
+	c.Assert(deadline, qt.Equals, tt)
 }
 
-func (s *ctxutilSuite) TestDeadline2(c *gc.C) {
-	t := time.Now().Add(5 * time.Second).UTC()
-	ctx1, cancel1 := context.WithDeadline(context.Background(), t)
+func TestDeadline2(t *testing.T) {
+	c := qt.New(t)
+	tt := time.Now().Add(5 * time.Second).UTC()
+	ctx1, cancel1 := context.WithDeadline(context.Background(), tt)
 	defer cancel1()
-	ctx, ctxCancel := join(context.Background(), ctx1)
-	defer ctxCancel()
+	ctx := ctxutil.Join(context.Background(), ctx1)
 	deadline, ok := ctx.Deadline()
-	c.Assert(ok, gc.Equals, true)
-	c.Assert(deadline, gc.Equals, t)
+	c.Assert(ok, qt.Equals, true)
+	c.Assert(deadline, qt.Equals, tt)
 }
 
-func (s *ctxutilSuite) TestDeadlineBoth1(c *gc.C) {
+func TestDeadlineBoth1(t *testing.T) {
+	c := qt.New(t)
 	t1 := time.Now().Add(5 * time.Second).UTC()
 	ctx1, cancel1 := context.WithDeadline(context.Background(), t1)
 	defer cancel1()
@@ -93,15 +88,15 @@ func (s *ctxutilSuite) TestDeadlineBoth1(c *gc.C) {
 	ctx2, cancel2 := context.WithDeadline(context.Background(), t2)
 	defer cancel2()
 
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 
 	deadline, ok := ctx.Deadline()
-	c.Assert(ok, gc.Equals, true)
-	c.Assert(deadline, gc.Equals, t1)
+	c.Assert(ok, qt.Equals, true)
+	c.Assert(deadline, qt.Equals, t1)
 }
 
-func (s *ctxutilSuite) TestDeadlineBoth2(c *gc.C) {
+func TestDeadlineBoth2(t *testing.T) {
+	c := qt.New(t)
 	t1 := time.Now().Add(5 * time.Second).UTC()
 	ctx1, cancel1 := context.WithDeadline(context.Background(), t1)
 	defer cancel1()
@@ -110,44 +105,43 @@ func (s *ctxutilSuite) TestDeadlineBoth2(c *gc.C) {
 	ctx2, cancel2 := context.WithDeadline(context.Background(), t2)
 	defer cancel2()
 
-	ctx, ctxCancel := join(ctx2, ctx1)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx2, ctx1)
 
 	deadline, ok := ctx.Deadline()
-	c.Assert(ok, gc.Equals, true)
-	c.Assert(deadline, gc.Equals, t1)
+	c.Assert(ok, qt.Equals, true)
+	c.Assert(deadline, qt.Equals, t1)
 }
 
-func (s *ctxutilSuite) TestValue1(c *gc.C) {
+func TestValue1(t *testing.T) {
+	c := qt.New(t)
 	ctx1 := context.WithValue(context.Background(), "foo", "bar")
-	ctx, ctxCancel := join(ctx1, context.Background())
-	defer ctxCancel()
-	c.Assert(ctx.Value("foo"), gc.Equals, "bar")
+	ctx := ctxutil.Join(ctx1, context.Background())
+	c.Assert(ctx.Value("foo"), qt.Equals, "bar")
 }
 
-func (s *ctxutilSuite) TestValue2(c *gc.C) {
+func TestValue2(t *testing.T) {
+	c := qt.New(t)
 	ctx1 := context.WithValue(context.Background(), "foo", "bar")
-	ctx, ctxCancel := join(context.Background(), ctx1)
-	defer ctxCancel()
-	c.Assert(ctx.Value("foo"), gc.Equals, "bar")
+	ctx := ctxutil.Join(context.Background(), ctx1)
+	c.Assert(ctx.Value("foo"), qt.Equals, "bar")
 }
 
-func (s *ctxutilSuite) TestValueBoth(c *gc.C) {
+func TestValueBoth(t *testing.T) {
+	c := qt.New(t)
 	ctx1 := context.WithValue(context.Background(), "foo", "bar1")
 	ctx2 := context.WithValue(context.Background(), "foo", "bar2")
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
-	c.Assert(ctx.Value("foo"), gc.Equals, "bar1")
+	ctx := ctxutil.Join(ctx1, ctx2)
+	c.Assert(ctx.Value("foo"), qt.Equals, "bar1")
 }
 
-func (s *ctxutilSuite) TestDoneRace(c *gc.C) {
+func TestDoneRace(t *testing.T) {
+	c := qt.New(t)
 	// This test is designed to be run with the race detector enabled.
 	ctx1, cancel1 := context.WithDeadline(context.Background(), time.Now())
 	defer cancel1()
 	ctx2, cancel2 := context.WithDeadline(context.Background(), time.Now())
 	defer cancel2()
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 	done := make(chan struct{})
 	go func() {
 		<-ctx.Done()
@@ -161,14 +155,14 @@ func (s *ctxutilSuite) TestDoneRace(c *gc.C) {
 	waitFor(c, done)
 }
 
-func (s *ctxutilSuite) TestErrRace(c *gc.C) {
+func TestErrRace(t *testing.T) {
+	c := qt.New(t)
 	// This test is designed to be run with the race detector enabled.
 	ctx1, cancel1 := context.WithDeadline(context.Background(), time.Now())
 	defer cancel1()
 	ctx2, cancel2 := context.WithDeadline(context.Background(), time.Now())
 	defer cancel2()
-	ctx, ctxCancel := join(ctx1, ctx2)
-	defer ctxCancel()
+	ctx := ctxutil.Join(ctx1, ctx2)
 	done := make(chan struct{})
 	go func() {
 		ctx.Err()
@@ -182,7 +176,7 @@ func (s *ctxutilSuite) TestErrRace(c *gc.C) {
 	waitFor(c, done)
 }
 
-func waitFor(c *gc.C, ch <-chan struct{}) {
+func waitFor(c *qt.C, ch <-chan struct{}) {
 	select {
 	case <-ch:
 		return
